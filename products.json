@@ -1,0 +1,37 @@
+[
+    {
+        "ProductId": 1,
+        "name": "Gallon of Gasoline",
+        "seller": "7-11",
+        "price": 3.50,
+        "quantity": 10
+    },
+    {
+        "ProductId": 1,
+        "name": "Gallon of Gasoline",
+        "seller": "Exon",
+        "price": 3.00,
+        "quantity": 10
+    },
+    {
+        "ProductId": 1,
+        "name": "Gallon of Gasoline",
+        "seller": "Speedway",
+        "price": 3.45,
+        "quantity": 10
+    },
+    {
+        "ProductId": 1,
+        "name": "Gallon of Gasoline",
+        "seller": "Kangaroo",
+        "price": 3.41,
+        "quantity": 10
+    },
+    {
+        "ProductId": 1,
+        "name": "Gallon of Gasoline",
+        "seller": "Shell",
+        "price": 3.36,
+        "quantity": 10
+    }
+]

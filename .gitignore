@@ -1,0 +1,5 @@
+*.o
+mSIM
+.vscode/
+test.c
+test
