@@ -3,3 +3,4 @@ mSIM
 .vscode/
 test.c
 test
+simulation_results.json
