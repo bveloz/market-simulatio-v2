@@ -1,385 +1,178 @@
-//tentative version, maybe c++ is better than struct for classes
-
-
-#ifdef __STDC_ALLOC_LIB__
-#define __STDC_WANT_LIB_EXT2__ 1
-#else
-#define _POSIX_C_SOURCE 200809L
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <time.h>
 #include <string.h>
-#include <ctype.h>
-#include <float.h>
-#include "cJSON.h"
-#include "mytime.h"
-#include "mSim.h"
-#include "mymath.h"
+
+#ifndef M_PI
+#define M_PI 3.14159
+#endif
+#define NUM_CUSTOMERS 3
+#define NUM_DAYS 10
+#define GAS_TANK_CAPACITY 15.0
+#define DAILY_TRAVEL_HOURS 2.0
+#define GAS_CONSUMPTION_RATE 2.0
+#define MAX_GAS_STATIONS 5
+#define MAX_CONVENIENCE_SCORE 5
+#define JSON_FILE "simulation_results.json"
 
 
-enum PREFERENCE_T
-{
-    HABITUAL, //default
-    EFFICIENT, 
-    BRAND
-};
+// Gas station struct
+typedef struct {
+    double base_price;
+    double adjusted_price;
+    int travel_time_from_a;
+    int travel_time_from_b;
+    int convenience_score_a_to_b;
+    int convenience_score_b_to_a;
+} GasStation;
 
-// customer 
-struct Customer 
-{
-    char *name;
-    double budget;
-    PREFERENCE_T preference; 
-};
-
-// product 
-struct Product
-{
-    int productId;
-    char *name;
-    char* seller;
-    double price;
-    double adjustedPrice;
-    double quantity;
-};
-
-struct Wallet
-{
-    Customer* owner;
-    Product* product;
-    double capacity;
-};
-
-struct ProductStatistics
-{
-    int productId;
-    double averagePrice;
-    double minPrice;
-    double maxPrice;
-};
+// Customer struct
+typedef struct {
+    double gas_tank_quantity;
+    int purchase_style;
+    double total_expenses[NUM_DAYS];
+    double average_cost_per_gallon[NUM_DAYS];
+    double total_time_spent[NUM_DAYS];
+} Customer;
 
 
-
-ProductStatistics gasStats;
-
-//support function to duplicate a string to all lowercase
-char* change_to_lower(char* str)
-{
-    if (str == NULL) return NULL;    
-    char* lower_str = (char*)malloc(strlen(str) + 1);
-    if (lower_str == NULL) return NULL;
-    for (int i = 0; str[i] != '\0'; i++)
-        str[i] = tolower((unsigned char)str[i]);
-    lower_str[strlen(str)] = '\0';
-    return lower_str;
+// HELPER FUNCTIONS
+// Function to generate random prices based on a bell curve
+double bell_curve_price(double base_price) {
+    double random_value = ((double)rand() / RAND_MAX - 0.5) * 2.0;
+    double factor = exp(-pow(random_value, 2));
+    return base_price + random_value * factor * base_price * 0.1;
 }
 
-//translate a string to preference type
-PREFERENCE_T string_to_preference(char* str)
-{
-    char* temp = change_to_lower(str);
-    PREFERENCE_T preference;
-    if (strcmp(temp, "habitual") == 0)
-        preference = HABITUAL;
-    else if (strcmp(temp, "efficient") == 0)
-        preference = EFFICIENT;
-    else if (strcmp(temp, "brand") == 0)
-        preference = BRAND;
+
+// GAS AND CUSTOMER FUNCTIONS
+// Function to simulate a single customer's trip
+void simulate_customer_trip(Customer *customer, GasStation *stations, int num_stations, int day) {
+    double gas_used = DAILY_TRAVEL_HOURS * GAS_CONSUMPTION_RATE;
+    double current_gas = customer->gas_tank_quantity - gas_used;
+    printf("%.2f\n", customer->gas_tank_quantity);
+    if (current_gas < 0) {
+        printf("Error: Gas consumption exceeds tank capacity.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Determine if refueling is needed
+    if ((customer->purchase_style == 0 && current_gas <= 3) || // Low tank (3 gallons)
+        (customer->purchase_style == 1 && current_gas < GAS_TANK_CAPACITY / 2) || // Half tank
+        (customer->purchase_style == 2)) { // Low cost check
+        printf("Refueuling\n");
+        int selected_station = -1;
+        double min_cost = 1e9;
+        double min_time = 1e9;
+        for (int i = 0; i < num_stations; i++) {
+            stations[i].adjusted_price = bell_curve_price(stations[i].base_price);
+
+            double cost = stations[i].adjusted_price * (GAS_TANK_CAPACITY - current_gas);
+            double time = stations[i].travel_time_from_a + stations[i].convenience_score_a_to_b;
+
+            if (customer->purchase_style == 0 && cost < min_cost) {
+                min_cost = cost;
+                selected_station = i;
+            } else if (customer->purchase_style == 1 && time < min_time) {
+                min_time = time;
+                selected_station = i;
+            } else if (customer->purchase_style == 2) {
+                selected_station = 0;
+                break;
+            }
+        }
+
+        // Refuel at the selected station
+        if (selected_station != -1) {
+            customer->gas_tank_quantity = GAS_TANK_CAPACITY;
+            customer->total_expenses[day] += stations[selected_station].adjusted_price * (GAS_TANK_CAPACITY - current_gas);
+            customer->total_time_spent[day] += stations[selected_station].travel_time_from_a + stations[selected_station].convenience_score_a_to_b;
+        }
+    }
     else
     {
-        int random;
-        random = rand() % 3;
-        preference = random;
+        customer->gas_tank_quantity = current_gas;
     }
-    
-    return preference;
+
+    // Record daily metrics
+    customer->average_cost_per_gallon[day] = customer->total_expenses[day] / (GAS_TANK_CAPACITY - current_gas);
 }
 
-//translate a preference type to string
-const char* preference_to_string(PREFERENCE_T preference)
-{
-    static const char* preferenceNames[] = {"Habitual", "Efficient", "Brand"};
-    if (preference >= HABITUAL && preference <= BRAND)
-        return preferenceNames[preference];
-    else 
-        return "Uknown";
+// Function to generate random gas stations
+void generate_gas_stations(GasStation *stations, int num_stations) {
+    for (int i = 0; i < num_stations; i++) {
+        stations[i].base_price = 2.0 + ((double)rand() / RAND_MAX) * 1.0;
+        stations[i].travel_time_from_a = rand() % 11 + 5; // 5 to 15 minutes
+        stations[i].travel_time_from_b = rand() % 11 + 5; // 5 to 15 minutes
+        stations[i].convenience_score_a_to_b = rand() % (MAX_CONVENIENCE_SCORE + 1);
+        stations[i].convenience_score_b_to_a = rand() % (MAX_CONVENIENCE_SCORE + 1);
+    }
 }
 
-// Function to parse the customers.json file
-Customer* parse_customers(const char *filename, int *customer_count) 
-{
-    FILE *file = fopen(filename, "r");
+// Main simulation function
+void run_simulation() {
+    srand(time(NULL));
+
+    GasStation stations[MAX_GAS_STATIONS];
+    Customer customers[NUM_CUSTOMERS];
+    FILE *file = fopen(JSON_FILE, "w");
+
     if (!file) {
-        fprintf(stderr, "Could not open file %s\n", filename);
-        return NULL;
+        printf("Error: Could not open file for writing.\n");
+        exit(EXIT_FAILURE);
     }
-    
-    fseek(file, 0, SEEK_END);
-    long length = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char *data = (char *)malloc(length + 1);
-    fread(data, 1, length, file);
+
+    fprintf(file, "{\n  \"customers\": [\n");
+
+    // Initialize customers
+    for (int i = 0; i < NUM_CUSTOMERS; i++) {
+        customers[i].gas_tank_quantity = GAS_TANK_CAPACITY;
+        customers[i].purchase_style = i % 3;
+        memset(customers[i].total_expenses, 0, sizeof(customers[i].total_expenses));
+        memset(customers[i].average_cost_per_gallon, 0, sizeof(customers[i].average_cost_per_gallon));
+        memset(customers[i].total_time_spent, 0, sizeof(customers[i].total_time_spent));
+    }
+
+    // Run simulation
+    for (int i = 0; i < NUM_CUSTOMERS; i++) 
+    {
+        printf("customer%d\n", i);
+        generate_gas_stations(stations, MAX_GAS_STATIONS);
+
+        // simulate customer on the same gas Station configuration for 90 days
+        for(int day = 0; day < NUM_DAYS; day++)
+        {
+            printf("day%d\n",day);
+            simulate_customer_trip(&customers[i], stations, MAX_GAS_STATIONS, day);
+        }
+        
+    }
+
+    // Write results to JSON file
+    for (int i = 0; i < NUM_CUSTOMERS; i++) 
+    {
+        fprintf(file, "    {\n      \"customer_id\": %d,\n      \"purchase_style\": %d,\n      \"total_expenses\": [",
+                i, customers[i].purchase_style);
+        for (int day = 0; day < NUM_DAYS; day++) 
+        {
+            fprintf(file, "%.2f%s", customers[i].total_expenses[day], day == NUM_DAYS - 1 ? "" : ", ");
+        }
+        fprintf(file, "],\n      \"average_cost_per_gallon\": [");
+        for (int day = 0; day < NUM_DAYS; day++) 
+        {
+            fprintf(file, "%.2f%s", customers[i].average_cost_per_gallon[day], day == NUM_DAYS - 1 ? "" : ", ");
+        }
+        fprintf(file, "]\n    }%s\n", i == NUM_CUSTOMERS - 1 ? "" : ",");
+    }
+
+    fprintf(file, "  ]\n}\n");
     fclose(file);
-    
-    cJSON *json = cJSON_Parse(data);
-    if (!json) {
-        fprintf(stderr, "Error parsing JSON\n");
-        free(data);
-        return NULL;
-    }
-    
-    *customer_count = cJSON_GetArraySize(json);
-    Customer *customers = (Customer *)malloc(*customer_count * sizeof(Customer));
-    
-    for (int i = 0; i < *customer_count; i++) {
-        cJSON *item = cJSON_GetArrayItem(json, i);
-        customers[i].name = strdup(cJSON_GetObjectItem(item, "name")->valuestring);
-        customers[i].budget = cJSON_GetObjectItem(item, "budget")->valuedouble;
-        customers[i].preference = string_to_preference(cJSON_GetObjectItem(item, "preference")->valuestring);
-    }
-    
-    cJSON_Delete(json);
-    free(data);
-    return customers;
+    printf("Simulation complete. Results saved to %s\n", JSON_FILE);
 }
 
-// Function to print a customer
-void print_customer(Customer* customer)
-{
-    printf("Name: %s, Budget: %.2f, Preference: %s\n",
-               customer->name, customer->budget, preference_to_string(customer->preference));
-}
-
-// Function to parse the products.json file 
-Product *parse_products(const char *filename, int *product_count) 
-{
-    FILE *file = fopen(filename, "r");
-    if (!file) {
-        fprintf(stderr, "Could not open file %s\n", filename);
-        return NULL;
-    }
-    
-    fseek(file, 0, SEEK_END);
-    long length = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char *data = (char *)malloc(length + 1);
-    fread(data, 1, length, file);
-    fclose(file);
-    
-    cJSON *json = cJSON_Parse(data);
-    if (!json) {
-        fprintf(stderr, "Error parsing JSON\n");
-        free(data);
-        return NULL;
-    }
-    
-    *product_count = cJSON_GetArraySize(json);
-    Product *products = (Product *)malloc(*product_count * sizeof(Product));
-    
-    for (int i = 0; i < *product_count; i++) {
-        cJSON *item = cJSON_GetArrayItem(json, i);
-        products[i].productId = cJSON_GetObjectItem(item, "ProductId")->valueint;
-        products[i].name = strdup(cJSON_GetObjectItem(item, "name")->valuestring);
-        products[i].seller = strdup(cJSON_GetObjectItem(item, "seller")->valuestring);
-        products[i].price = cJSON_GetObjectItem(item, "price")->valuedouble;
-        products[i].adjustedPrice = products[i].adjustedPrice;
-        products[i].quantity = cJSON_GetObjectItem(item, "quantity")->valueint;
-    }
-    
-    cJSON_Delete(json);
-    free(data);
-    return products;
-}
-
-// Function that prints a product
-void print_product(Product* product)
-{
-    printf("Name: %s, Baseline Price: %.2f, Adjusted Price: %.2f, Quantity: %.2f, ProductId: %d, Sold at: %s\n",
-               product->name, product->price, product->adjustedPrice, product->quantity, product->productId, product->seller);
-}
-
-//function to create a wallet, customer begins with 0 items
-Wallet* create_wallet(Customer* c, Product* p, int cap)
-{
-    Wallet* returnWallet = (Wallet*)malloc(sizeof(Wallet));
-    returnWallet->owner = c;
-    returnWallet->product = (Product*)malloc(sizeof(Product));
-    memcpy(returnWallet->product, p, sizeof(Product));
-    // by default 0 items
-    returnWallet->product->quantity = 0;
-    //set capacity
-    returnWallet->capacity = cap;
-    return returnWallet;
-}
-
-void free_wallet(Wallet* w)
-{
-    free(w->product);
-    w->product = NULL;
-    free(w);
-    w = NULL;
-}
-
-// random price adjustment factor
-void set_adjusted_price(Product* product)
-{
-    double random = random_bell_curve(gasStats.minPrice, gasStats.maxPrice, gasStats.averagePrice);
-    product->adjustedPrice = random;
-    print_product(product);
-}
-
-float calculate_purchase_probability(Wallet* wallet, Product* product)
-{
-    if (wallet->product->productId != product->productId)
-    {
-        printf("The product does not match the wallet\n");
-        return 1;
-    }
-    float probability;
-
-    
-}
-
-int consume_product(Wallet* consumer, int quantity)
-{
-    if (consumer->product->quantity < quantity)
-    {
-        printf("Attempting to consume more than is available\n");
-        return 1;
-    }
-    else
-    {
-        consumer->product->quantity -= quantity;
-        printf("%s consumed %d of %s\n", consumer->owner->name, quantity, consumer->product->name);
-        return 0;
-    }
-}
-
-int purchase_amount(Wallet* wallet, double price)
-{
-    int space = wallet->capacity - wallet->product->quantity;
-    if (space <= 0)
-        return 0;
-    double affordable_amount = wallet->owner->budget / price;
-    affordable_amount = space < affordable_amount ? space : affordable_amount;
-    double sensitivity = price > gasStats.averagePrice ? 0.5 : 1.0;
-    int amount = affordable_amount * sensitivity;
-    return amount;
-}
-
-int purchase_product(Wallet* wallet, Product* product, int hour)
-{
-    if (wallet->product->productId != product->productId)
-    {
-        printf("The product does not match the wallet\n");
-        return 1;
-    }
-    double gasPrice = product->adjustedPrice;
-    int quantity = purchase_amount(wallet, gasPrice);
-    double cost = quantity * gasPrice;
-
-    if (cost > wallet->owner->budget || quantity == 0)
-    {
-        printf("The amount requested is out of budget or not needed \n");
-        return 1;
-    }
-    else
-    {
-        wallet->owner->budget -= cost;
-        wallet->product->quantity += quantity;
-        printf("Purchased %d %s from %s at $%.2f per unit. Remaining budget: $%.2f\n",
-           quantity, product->name ,product->seller, gasPrice, wallet->owner->budget);
-        return 0;
-    }
-}
-
-void restock_product(Product* product, int quantity)
-{
-    product->quantity += quantity;
-}
-
-// Main function to execute the program
-int main(int argc, char *argv[]) 
-{
-    if (argc < 3) 
-    {
-        fprintf(stderr, "Usage: %s customers.json products.json\n", argv[0]);
-        return 1;
-    }
-    int i;
-    //srand(1);
-    srand((unsigned int)time(NULL));
-    int customer_count, product_count;
-    Customer *customers = parse_customers(argv[1], &customer_count);
-    Product *products = parse_products(argv[2], &product_count);
-    
-    if (!customers || !products) {
-        fprintf(stderr, "Failed to parse JSON files\n");
-        return 1;
-    }
-
-
-    gasStats.productId = 1;
-    double average = 0.0, min = DBL_MAX, max = DBL_MIN;
-    for (i = 0; i < product_count; i++) 
-    {
-        if (products[i].productId == 1)
-        {
-            average += products[i].price;
-            min = min > products[i].price ? products[i].price : min;
-            max = max < products[i].price ? products[i].price : max;
-        }
-    }
-    gasStats.averagePrice = average / (double) product_count;
-    gasStats.minPrice = min;
-    gasStats.maxPrice = max;
-    // Print parsed data
-    printf("Customers:\n");
-    for (i = 0; i < customer_count; i++) 
-        print_customer(&customers[i]);
-    
-    printf("\nProducts:\n");
-    for (i = 0; i < product_count; i++) 
-        set_adjusted_price(&products[i]);
-    
-    
-    Wallet* customer_wallet = create_wallet(customers, products, 15);
-    printf("\nNew Wallet: %s, %s, %d\n", customer_wallet->owner->name, customer_wallet->product->name, customer_wallet->product->quantity, customer_wallet->capacity);
-    //create a new time object
-    Time* t = initialize_default_time();
-    printf("Start of day:\n");
-    //pass through a 24 hour cycle
-    for (i = 0; i < MAX_HOURS; i++)
-    {
-        printf("\n");
-        print_time(t);
-        //random price adjustment every 2 hours
-        int random = rand() % product_count;
-        if (i % 2 == 0)
-        {
-            printf("Random price adjustment\n");
-            set_adjusted_price(&products[random]);
-        }
-        increment_time(t, 1, HOUR);
-        purchase_product(customer_wallet, &products[random], i);
-        if (i >= 9 && i <= 17)
-        {
-            consume_product(customer_wallet, rand() % 2);
-        }
-    }
-
-
-    // Free allocated memory
-    for (int i = 0; i < customer_count; i++) {
-        free(customers[i].name);
-    }
-    for (int i = 0; i < product_count; i++) {
-        free(products[i].name);
-    }
-    
-    free(customers);
-    free(products);
-
+// Entry point
+int main() {
+    run_simulation();
     return 0;
 }
