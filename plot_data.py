@@ -34,6 +34,17 @@ for purchase_style in purchase_style_expenses:
         time / len(data["customers"]) for time in purchase_style_time_spent[purchase_style]
     ]
 
+
+
+# Define custom labels for the purchase styles
+custom_labels = {
+    "style_1": "Purchase on 3 gallons or less",
+    "style_2": "Purchase on 7 gallons or less",
+    "style_3": "Lowest cost purchase",
+    # Add more styles as needed
+}
+
+
 # Plotting the data
 chart.figure(figsize=(20, 12))
 
@@ -47,17 +58,31 @@ for purchase_style, avg_time in purchase_style_time_spent.items():
     x = list(range(len(avg_time)))
     chart.plot(x, avg_time, marker='s', linestyle='--', label=f"Time - Style {purchase_style}")
 
-
-# Format y-axis to display in dollars
-def format_dollars(x, _):
-    return f'${x:.2f}'
-
-chart.gca().yaxis.set_major_formatter(FuncFormatter(format_dollars))
+# Plotting the data: Expenses
+chart.figure(figsize=(10, 6))
+for purchase_style, avg_expenses in purchase_style_expenses.items():
+    x = list(range(len(avg_expenses)))
+    label = custom_labels.get(purchase_style, purchase_style)
+    chart.plot(x, avg_expenses, marker='o', label=label)
 
 chart.title("Average Daily Expenses by Purchase Style")
 chart.xlabel("Day Index")
-chart.ylabel("Average Daily Expenses (USD)")
+chart.ylabel("Average Daily Expenses")
 chart.legend(title="Purchase Style")
 chart.grid(True)
 chart.tight_layout()
-chart.savefig("output.png")
+chart.savefig("average_expenses.png")
+
+# Plotting the data: Time Spent
+chart.figure(figsize=(10, 6))
+for purchase_style, avg_time in purchase_style_time_spent.items():
+    x = list(range(len(avg_time)))
+    chart.plot(x, avg_time, marker='s', label=f"Style {purchase_style}")
+
+chart.title("Average Daily Time Spent by Purchase Style")
+chart.xlabel("Days")
+chart.ylabel("Average Daily Time Spent")
+chart.legend(title="Purchase Style")
+chart.grid(True)
+chart.tight_layout()
+chart.savefig("average_time_spent.png")
