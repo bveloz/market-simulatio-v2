@@ -74,15 +74,30 @@ purchase_styles = list(purchase_style_expenses.keys())
 t_test_results = []
 variance_results = []
 
-# Calculate variance based on average time spent per purchase style
-for purchase_style in purchase_styles:
+# Perform t-tests for expenses
+for i, style1 in enumerate(purchase_styles):
+    for style2 in purchase_styles[i + 1:]:
+        # T-test for expenses
+        t_stat_expenses, p_val_expenses = stats.ttest_ind(purchase_style_expenses[style1], purchase_style_expenses[style2])
+        
+        # T-test for time spent
+        t_stat_time, p_val_time = stats.ttest_ind(purchase_style_time_spent[style1], purchase_style_time_spent[style2])
+
+        # Append the t-test results
+        t_test_results.append((
+            custom_labels.get(style1, f"Style {style1}"),
+            custom_labels.get(style2, f"Style {style2}"),
+            t_stat_expenses, p_val_expenses,
+            t_stat_time, p_val_time
+        ))
+
     # Variance for expenses and time spent for each purchase style
-    var_expenses = np.var(purchase_style_expenses[purchase_style])
-    var_time_spent = np.var(purchase_style_time_spent[purchase_style])
+    var_expenses = np.var(purchase_style_expenses[style1])
+    var_time_spent = np.var(purchase_style_time_spent[style1])
 
     # Append variance results for this purchase style
     variance_results.append((
-        custom_labels.get(purchase_style, f"Style {purchase_style}"),
+        custom_labels.get(style1, f"Style {style1}"),
         var_expenses, var_time_spent
     ))
 
