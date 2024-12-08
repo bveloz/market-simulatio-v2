@@ -3,6 +3,11 @@ import matplotlib.pyplot as chart
 from matplotlib.ticker import FuncFormatter
 import numpy as np
 from scipy import stats
+import os
+
+# Create the /results folder if it doesn't exist
+if not os.path.exists('results'):
+    os.makedirs('results')
 
 # Load the data from the JSON file
 with open("simulation_results.json", "r") as f:
@@ -111,7 +116,7 @@ chart.ylabel("Average Daily Expenses (USD)")
 chart.legend(title="Purchase Style")
 chart.grid(True)
 chart.tight_layout()
-chart.savefig("output_expenses.png")
+chart.savefig('results/output_expenses.png')
 
 # Plot cumulative time spent
 chart.figure(figsize=(10, 6))
@@ -127,7 +132,7 @@ chart.ylabel("Cumulative Time Spent (Minutes)")
 chart.legend(title="Purchase Style")
 chart.grid(True)
 chart.tight_layout()
-chart.savefig("output_cumulative_time.png")
+chart.savefig('results/output_cumulative_time.png')
 
 # Display t-test results in a table format
 chart.figure(figsize=(10, 6))
@@ -146,7 +151,7 @@ table.auto_set_column_width([0, 1, 2, 3, 4])
 
 chart.title("T-Test Results: Expenses and Time")
 chart.tight_layout()
-chart.savefig("output_t_test_results.png")
+chart.savefig('results/output_t_test_results.png')
 
 # Display variance results in a table format
 chart.figure(figsize=(10, 6))
@@ -165,4 +170,4 @@ table.auto_set_column_width([0, 1, 2])
 
 chart.title("Variance Results: Expenses and Time")
 chart.tight_layout()
-chart.savefig("output_variance_results.png")
+chart.savefig('results/output_variance_results.png')
