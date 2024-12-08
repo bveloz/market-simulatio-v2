@@ -79,7 +79,7 @@ for i in range(len(purchase_styles)):
         # Variance for expenses and time spent
         var_expenses_i = np.var(purchase_style_expenses[style_i])
         var_expenses_j = np.var(purchase_style_expenses[style_j])
-        
+
         var_time_i = np.var(purchase_style_time_spent[style_i])
         var_time_j = np.var(purchase_style_time_spent[style_j])
 
@@ -126,7 +126,7 @@ for purchase_style, avg_cumulative_time in purchase_style_cumulative_time.items(
     label = custom_labels.get(purchase_style, f"Style {purchase_style}")
     chart.plot(x, avg_cumulative_time, marker='s', linestyle='--', label=label)
 
-chart.title("Cumulative Time Spent by Purchase Style")
+chart.title("Cumulative Time Spent Travelling to Purchase Gas")
 chart.xlabel("Days")
 chart.ylabel("Cumulative Time Spent (Minutes)")
 chart.legend(title="Purchase Style")
