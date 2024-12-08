@@ -9,8 +9,8 @@ import os
 if not os.path.exists('results'):
     os.makedirs('results')
 
-# Load the data from the JSON file
-with open("simulation_results.json", "r") as f:
+
+with open("results/simulation_results.json", "r") as f:
     data = json.load(f)
 
 # Initialize dictionaries to store data

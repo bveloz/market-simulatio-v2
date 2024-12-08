@@ -4,15 +4,15 @@
 #include <time.h>
 #include <string.h>
 
-
 #define NUM_CUSTOMERS 1500
 #define NUM_DAYS 60
 #define GAS_TANK_CAPACITY 15.0
 #define DAILY_TRAVEL_HOURS 2.0
 #define GAS_CONSUMPTION_RATE 2.0
 #define MAX_GAS_STATIONS 10
+#define RESULTS_FOLDER "results/"
 #define JSON_FILE "simulation_results.json"
-
+#define FULL_PATH RESULTS_FOLDER JSON_FILE
 
 // Gas station struct
 typedef struct {
@@ -21,7 +21,6 @@ typedef struct {
     int travel_time_from_a;
     int travel_time_from_b;
 } GasStation;
-
 
 // Customer struct
 typedef struct {
@@ -34,7 +33,6 @@ typedef struct {
     double total_time_spent[NUM_DAYS];
 } Customer;
 
-
 // HELPER FUNCTIONS
 // Function to generate random prices based on a bell curve
 double bell_curve_price(double base_price) {
@@ -42,7 +40,6 @@ double bell_curve_price(double base_price) {
     double factor = exp(-pow(random_value, 2));
     return base_price + random_value * factor * base_price * 0.1;
 }
-
 
 // GAS AND CUSTOMER FUNCTIONS
 // Function to simulate a single customer's trip
@@ -116,9 +113,8 @@ void generate_gas_stations(GasStation *stations, int num_stations) {
 void run_simulation() {
     srand(time(NULL));
     
-    
     Customer customers[NUM_CUSTOMERS];
-    FILE *file = fopen(JSON_FILE, "w");
+    FILE *file = fopen(FULL_PATH, "w");
 
     if (!file) {
         printf("Error: Could not open file for writing.\n");
@@ -129,9 +125,6 @@ void run_simulation() {
 
     // Initialize customers
     for (int i = 0; i < NUM_CUSTOMERS; i++) {
-
-        
-
         customers[i].gas_tank_quantity = GAS_TANK_CAPACITY;
         customers[i].purchase_style = i % 3;
         memset(customers[i].total_expenses_per_day, 0, sizeof(customers[i].total_expenses_per_day));
@@ -199,7 +192,7 @@ void run_simulation() {
 
     fprintf(file, "  ]\n}\n");
     fclose(file);
-    printf("Simulation complete. Results saved to %s\n", JSON_FILE);
+    printf("Simulation complete. Results saved to %s\n", FULL_PATH);
 }
 
 // Entry point
