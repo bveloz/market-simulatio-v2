@@ -7,8 +7,8 @@
 #ifndef M_PI
 #define M_PI 3.14159
 #endif
-#define NUM_CUSTOMERS 3
-#define NUM_DAYS 10
+#define NUM_CUSTOMERS 1500
+#define NUM_DAYS 90
 #define GAS_TANK_CAPACITY 15.0
 #define DAILY_TRAVEL_HOURS 2.0
 #define GAS_CONSUMPTION_RATE 2.0
@@ -31,8 +31,10 @@ typedef struct {
 typedef struct {
     double gas_tank_quantity;
     int purchase_style;
-    double total_expenses[NUM_DAYS];
+    double total_expenses_per_day[NUM_DAYS];
+    double total_cumulative_expenses[NUM_DAYS];
     double average_cost_per_gallon[NUM_DAYS];
+    double cumulative_cost_per_gallon[NUM_DAYS];
     double total_time_spent[NUM_DAYS];
 } Customer;
 
@@ -51,7 +53,6 @@ double bell_curve_price(double base_price) {
 void simulate_customer_trip(Customer *customer, GasStation *stations, int num_stations, int day) {
     double gas_used = DAILY_TRAVEL_HOURS * GAS_CONSUMPTION_RATE;
     double current_gas = customer->gas_tank_quantity - gas_used;
-    printf("%.2f\n", customer->gas_tank_quantity);
     if (current_gas < 0) {
         printf("Error: Gas consumption exceeds tank capacity.\n");
         exit(EXIT_FAILURE);
@@ -61,7 +62,6 @@ void simulate_customer_trip(Customer *customer, GasStation *stations, int num_st
     if ((customer->purchase_style == 0 && current_gas <= 3) || // Low tank (3 gallons)
         (customer->purchase_style == 1 && current_gas < GAS_TANK_CAPACITY / 2) || // Half tank
         (customer->purchase_style == 2)) { // Low cost check
-        printf("Refueuling\n");
         int selected_station = -1;
         double min_cost = 1e9;
         double min_time = 1e9;
@@ -86,7 +86,7 @@ void simulate_customer_trip(Customer *customer, GasStation *stations, int num_st
         // Refuel at the selected station
         if (selected_station != -1) {
             customer->gas_tank_quantity = GAS_TANK_CAPACITY;
-            customer->total_expenses[day] += stations[selected_station].adjusted_price * (GAS_TANK_CAPACITY - current_gas);
+            customer->total_expenses_per_day[day] += stations[selected_station].adjusted_price * (GAS_TANK_CAPACITY - current_gas);
             customer->total_time_spent[day] += stations[selected_station].travel_time_from_a + stations[selected_station].convenience_score_a_to_b;
         }
     }
@@ -96,7 +96,7 @@ void simulate_customer_trip(Customer *customer, GasStation *stations, int num_st
     }
 
     // Record daily metrics
-    customer->average_cost_per_gallon[day] = customer->total_expenses[day] / (GAS_TANK_CAPACITY - current_gas);
+    customer->average_cost_per_gallon[day] = customer->total_expenses_per_day[day] / (GAS_TANK_CAPACITY - current_gas);
 }
 
 // Function to generate random gas stations
@@ -129,7 +129,8 @@ void run_simulation() {
     for (int i = 0; i < NUM_CUSTOMERS; i++) {
         customers[i].gas_tank_quantity = GAS_TANK_CAPACITY;
         customers[i].purchase_style = i % 3;
-        memset(customers[i].total_expenses, 0, sizeof(customers[i].total_expenses));
+        memset(customers[i].total_expenses_per_day, 0, sizeof(customers[i].total_expenses_per_day));
+        memset(customers[i].total_cumulative_expenses, 0, sizeof(customers[i].total_cumulative_expenses));
         memset(customers[i].average_cost_per_gallon, 0, sizeof(customers[i].average_cost_per_gallon));
         memset(customers[i].total_time_spent, 0, sizeof(customers[i].total_time_spent));
     }
@@ -137,31 +138,53 @@ void run_simulation() {
     // Run simulation
     for (int i = 0; i < NUM_CUSTOMERS; i++) 
     {
-        printf("customer%d\n", i);
         generate_gas_stations(stations, MAX_GAS_STATIONS);
 
         // simulate customer on the same gas Station configuration for 90 days
         for(int day = 0; day < NUM_DAYS; day++)
         {
-            printf("day%d\n",day);
             simulate_customer_trip(&customers[i], stations, MAX_GAS_STATIONS, day);
+            double sum = 0; 
+            if (day > 0)
+                sum = customers[i].total_cumulative_expenses[day - 1];
+            sum += customers[i].total_expenses_per_day[day];
+            customers[i].total_cumulative_expenses[day] = sum;
+            sum = 0;
+            if (day > 0)
+                sum = customers[i].cumulative_cost_per_gallon[day - 1];
+            sum += customers[i].average_cost_per_gallon[day];
+            customers[i].cumulative_cost_per_gallon[day] = sum;
         }
-        
     }
 
     // Write results to JSON file
     for (int i = 0; i < NUM_CUSTOMERS; i++) 
     {
-        fprintf(file, "    {\n      \"customer_id\": %d,\n      \"purchase_style\": %d,\n      \"total_expenses\": [",
+        fprintf(file, "    {\n      \"customer_id\": %d,\n      \"purchase_style\": %d,\n      \"total_expenses_per_day\": [",
                 i, customers[i].purchase_style);
         for (int day = 0; day < NUM_DAYS; day++) 
         {
-            fprintf(file, "%.2f%s", customers[i].total_expenses[day], day == NUM_DAYS - 1 ? "" : ", ");
+            fprintf(file, "%.2f%s", customers[i].total_expenses_per_day[day], day == NUM_DAYS - 1 ? "" : ", ");
+        }
+        fprintf(file, "],\n      \"total_cumulative_expenses\": [");
+        for (int day = 0; day < NUM_DAYS; day++) 
+        {
+            fprintf(file, "%.2f%s", customers[i].total_cumulative_expenses[day], day == NUM_DAYS - 1 ? "" : ", ");
         }
         fprintf(file, "],\n      \"average_cost_per_gallon\": [");
         for (int day = 0; day < NUM_DAYS; day++) 
         {
             fprintf(file, "%.2f%s", customers[i].average_cost_per_gallon[day], day == NUM_DAYS - 1 ? "" : ", ");
+        }
+        fprintf(file, "],\n      \"cumulative_cost_per_gallon\": [");
+        for (int day = 0; day < NUM_DAYS; day++) 
+        {
+            fprintf(file, "%.2f%s", customers[i].cumulative_cost_per_gallon[day], day == NUM_DAYS - 1 ? "" : ", ");
+        }
+        fprintf(file, "],\n      \"total_time_spent\": [");
+        for (int day = 0; day < NUM_DAYS; day++) 
+        {
+            fprintf(file, "%.2f%s", customers[i].total_time_spent[day], day == NUM_DAYS - 1 ? "" : ", ");
         }
         fprintf(file, "]\n    }%s\n", i == NUM_CUSTOMERS - 1 ? "" : ",");
     }
