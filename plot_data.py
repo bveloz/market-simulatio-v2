@@ -1,6 +1,8 @@
 import json
 import matplotlib.pyplot as chart
 from matplotlib.ticker import FuncFormatter
+import numpy as np
+from scipy import stats
 
 # Load the data from the JSON file
 with open("simulation_results.json", "r") as f:
@@ -44,8 +46,6 @@ for purchase_style in purchase_style_expenses:
         time / num_customers for time in purchase_style_cumulative_time[purchase_style]
     ]
 
-
-
 # Define custom labels for the purchase styles
 custom_labels = {
     0: "Low Gas",
@@ -53,6 +53,40 @@ custom_labels = {
     2: "Cheapest Gas",
 }
 
+# Perform t-tests and calculate variance for both expenses and time
+# List of purchase styles
+purchase_styles = list(purchase_style_expenses.keys())
+
+# T-test for expenses and time spent between each pair of purchase styles
+for i in range(len(purchase_styles)):
+    for j in range(i + 1, len(purchase_styles)):
+        style_i = purchase_styles[i]
+        style_j = purchase_styles[j]
+        
+        # Perform t-test for average daily expenses
+        t_expenses, p_expenses = stats.ttest_ind(purchase_style_expenses[style_i], purchase_style_expenses[style_j])
+        
+        # Perform t-test for average time spent
+        t_time, p_time = stats.ttest_ind(purchase_style_time_spent[style_i], purchase_style_time_spent[style_j])
+        
+        # Print the results
+        print(f"T-test between {custom_labels.get(style_i, f'Style {style_i}')} and {custom_labels.get(style_j, f'Style {style_j}')}:")
+
+        # Expenses results
+        print(f"  T-test for expenses: t-statistic = {t_expenses:.3f}, p-value = {p_expenses:.3f}")
+        
+        # Time spent results
+        print(f"  T-test for time spent: t-statistic = {t_time:.3f}, p-value = {p_time:.3f}")
+        
+        # Variance for expenses and time spent
+        var_expenses_i = np.var(purchase_style_expenses[style_i])
+        var_expenses_j = np.var(purchase_style_expenses[style_j])
+        
+        var_time_i = np.var(purchase_style_time_spent[style_i])
+        var_time_j = np.var(purchase_style_time_spent[style_j])
+        
+        print(f"  Variance for expenses: Style {style_i} = {var_expenses_i:.3f}, Style {style_j} = {var_expenses_j:.3f}")
+        print(f"  Variance for time spent: Style {style_i} = {var_time_i:.3f}, Style {style_j} = {var_time_j:.3f}\n")
 
 # Plotting the data
 chart.figure(figsize=(10, 6))
