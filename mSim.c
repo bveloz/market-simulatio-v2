@@ -107,8 +107,8 @@ void simulate_customer_trip(Customer *customer, GasStation *stations, int num_st
 void generate_gas_stations(GasStation *stations, int num_stations) {
     for (int i = 0; i < num_stations; i++) {
         stations[i].base_price = 2.0 + ((double)rand() / RAND_MAX) * 1.0;
-        stations[i].travel_time_from_a = rand() % 11 + 5; // 5 to 15 minutes
-        stations[i].travel_time_from_b = rand() % 11 + 5; // 5 to 15 minutes
+        stations[i].travel_time_from_a = rand() % 16 + 5; // 5 to 20 minutes
+        stations[i].travel_time_from_b = rand() % 16 + 5; // 5 to 20 minutes
     }
 }
 
