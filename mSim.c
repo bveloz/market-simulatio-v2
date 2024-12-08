@@ -8,7 +8,7 @@
 #define M_PI 3.14159
 #endif
 #define NUM_CUSTOMERS 1500
-#define NUM_DAYS 90
+#define NUM_DAYS 60
 #define GAS_TANK_CAPACITY 15.0
 #define DAILY_TRAVEL_HOURS 2.0
 #define GAS_CONSUMPTION_RATE 2.0

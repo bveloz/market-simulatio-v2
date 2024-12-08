@@ -5,3 +5,6 @@ test.c
 test
 simulation_results.json
 output.png
+average_expenses.png
+average_time_spent.png
+plot_data-backup.py
