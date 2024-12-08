@@ -6,6 +6,7 @@
 
 #define NUM_CUSTOMERS 1500
 #define NUM_DAYS 60
+
 #define GAS_TANK_CAPACITY 15.0
 #define DAILY_TRAVEL_HOURS 2.0
 #define GAS_CONSUMPTION_RATE 2.0
@@ -61,6 +62,7 @@ void simulate_customer_trip(Customer *customer, GasStation *stations, int num_st
             double min_time = 1e9;
             int trip_travel_time;
             for (int i = 0; i < num_stations; i++) {
+                
                 stations[i].adjusted_price = bell_curve_price(stations[i].base_price);
 
                 int temp_travel_time = trip % 2 == 0 ? stations[i].travel_time_from_a : stations[i].travel_time_from_b; //alternate trip times between trips
