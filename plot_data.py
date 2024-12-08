@@ -9,7 +9,7 @@ import os
 if not os.path.exists('results'):
     os.makedirs('results')
 
-
+# Load the simulation data
 with open("results/simulation_results.json", "r") as f:
     data = json.load(f)
 
@@ -17,6 +17,7 @@ with open("results/simulation_results.json", "r") as f:
 purchase_style_expenses = {}
 purchase_style_time_spent = {}
 purchase_style_cumulative_time = {}
+purchase_style_avg_time = {}  # To store average time per customer by purchase style
 
 # Group total expenses, time spent, and cumulative time spent by purchase style
 for customer in data["customers"]:
@@ -27,16 +28,24 @@ for customer in data["customers"]:
     # Calculate cumulative time spent for this customer
     cumulative_time_spent = [sum(total_time_spent[:i+1]) for i in range(len(total_time_spent))]
 
+    # Calculate average time spent per customer
+    avg_time_spent = np.mean(total_time_spent)
+
+    # Initialize the purchase style entries if not already
     if purchase_style not in purchase_style_expenses:
         purchase_style_expenses[purchase_style] = [0] * len(total_expenses)
         purchase_style_time_spent[purchase_style] = [0] * len(total_time_spent)
         purchase_style_cumulative_time[purchase_style] = [0] * len(cumulative_time_spent)
+        purchase_style_avg_time[purchase_style] = []
 
     # Accumulate values for each day
     for day in range(len(total_expenses)):
         purchase_style_expenses[purchase_style][day] += total_expenses[day]
         purchase_style_time_spent[purchase_style][day] += total_time_spent[day]
         purchase_style_cumulative_time[purchase_style][day] += cumulative_time_spent[day]
+
+    # Store the average time spent by this customer for variance calculation
+    purchase_style_avg_time[purchase_style].append(avg_time_spent)
 
 # Calculate averages for expenses, time spent, and cumulative time spent
 num_customers = len(data["customers"])
@@ -65,6 +74,7 @@ purchase_styles = list(purchase_style_expenses.keys())
 t_test_results = []
 variance_results = []
 
+# Calculate variance based on average time spent per purchase style
 for i in range(len(purchase_styles)):
     for j in range(i + 1, len(purchase_styles)):
         style_i = purchase_styles[i]
@@ -95,6 +105,16 @@ for i in range(len(purchase_styles)):
             custom_labels.get(style_j, f"Style {style_j}"),
             var_expenses_i, var_expenses_j, var_time_i, var_time_j
         ))
+
+# Calculate the variance for average time spent per purchase style
+avg_time_variance_results = []
+for purchase_style in purchase_style_avg_time:
+    avg_times = purchase_style_avg_time[purchase_style]
+    avg_time_variance = np.var(avg_times)
+    avg_time_variance_results.append((
+        custom_labels.get(purchase_style, f"Style {purchase_style}"),
+        avg_time_variance
+    ))
 
 # Plotting the data
 chart.figure(figsize=(10, 6))
@@ -153,21 +173,21 @@ chart.title("T-Test Results: Expenses and Time")
 chart.tight_layout()
 chart.savefig('results/output_t_test_results.png')
 
-# Display variance results in a table format
+# Display average time variance results in a table format
 chart.figure(figsize=(10, 6))
 chart.axis('off')
 
-# Create a table for the variance results
-table_data = [["Comparison", "Variance (Expenses)", "Variance (Time)"]]
-for result in variance_results:
-    table_data.append([f"{result[0]} vs {result[1]}", f"{result[2]:.3f}", f"{result[4]:.3f}"])
+# Create a table for the average time variance results
+table_data = [["Comparison", "Variance (Average Time)"]]
+for result in avg_time_variance_results:
+    table_data.append([f"{result[0]}", f"{result[1]:.3f}"])
 
-# Plot the table for variance results
-table = chart.table(cellText=table_data, loc='center', cellLoc='center', colWidths=[0.3, 0.3, 0.3])
+# Plot the table for average time variance results
+table = chart.table(cellText=table_data, loc='center', cellLoc='center', colWidths=[0.5, 0.3])
 table.auto_set_font_size(False)
 table.set_fontsize(10)
-table.auto_set_column_width([0, 1, 2])
+table.auto_set_column_width([0, 1])
 
-chart.title("Variance Results: Expenses and Time")
+chart.title("Variance of Average Time Spent per Purchase Style")
 chart.tight_layout()
-chart.savefig('results/output_variance_results.png')
+chart.savefig('results/output_avg_time_variance_results.png')
