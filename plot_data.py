@@ -54,10 +54,12 @@ custom_labels = {
 }
 
 # Perform t-tests and calculate variance for both expenses and time
-# List of purchase styles
 purchase_styles = list(purchase_style_expenses.keys())
 
-# T-test for expenses and time spent between each pair of purchase styles
+# Initialize lists to store t-test results and variances for display
+t_test_results = []
+variance_results = []
+
 for i in range(len(purchase_styles)):
     for j in range(i + 1, len(purchase_styles)):
         style_i = purchase_styles[i]
@@ -69,24 +71,25 @@ for i in range(len(purchase_styles)):
         # Perform t-test for average time spent
         t_time, p_time = stats.ttest_ind(purchase_style_time_spent[style_i], purchase_style_time_spent[style_j])
         
-        # Print the results
-        print(f"T-test between {custom_labels.get(style_i, f'Style {style_i}')} and {custom_labels.get(style_j, f'Style {style_j}')}:")
-
-        # Expenses results
-        print(f"  T-test for expenses: t-statistic = {t_expenses:.3f}, p-value = {p_expenses:.3f}")
-        
-        # Time spent results
-        print(f"  T-test for time spent: t-statistic = {t_time:.3f}, p-value = {p_time:.3f}")
-        
         # Variance for expenses and time spent
         var_expenses_i = np.var(purchase_style_expenses[style_i])
         var_expenses_j = np.var(purchase_style_expenses[style_j])
         
         var_time_i = np.var(purchase_style_time_spent[style_i])
         var_time_j = np.var(purchase_style_time_spent[style_j])
-        
-        print(f"  Variance for expenses: Style {style_i} = {var_expenses_i:.3f}, Style {style_j} = {var_expenses_j:.3f}")
-        print(f"  Variance for time spent: Style {style_i} = {var_time_i:.3f}, Style {style_j} = {var_time_j:.3f}\n")
+
+        # Append results to the lists
+        t_test_results.append((
+            custom_labels.get(style_i, f"Style {style_i}"),
+            custom_labels.get(style_j, f"Style {style_j}"),
+            t_expenses, p_expenses, t_time, p_time
+        ))
+
+        variance_results.append((
+            custom_labels.get(style_i, f"Style {style_i}"),
+            custom_labels.get(style_j, f"Style {style_j}"),
+            var_expenses_i, var_expenses_j, var_time_i, var_time_j
+        ))
 
 # Plotting the data
 chart.figure(figsize=(10, 6))
@@ -125,3 +128,41 @@ chart.legend(title="Purchase Style")
 chart.grid(True)
 chart.tight_layout()
 chart.savefig("output_cumulative_time.png")
+
+# Display t-test results in a table format
+chart.figure(figsize=(10, 6))
+chart.axis('off')
+
+# Create a table for the t-test results
+table_data = [["Comparison", "T-stat (Expenses)", "P-value (Expenses)", "T-stat (Time)", "P-value (Time)"]]
+for result in t_test_results:
+    table_data.append([f"{result[0]} vs {result[1]}", f"{result[2]:.3f}", f"{result[3]:.3f}", f"{result[4]:.3f}", f"{result[5]:.3f}"])
+
+# Plot the table for t-tests
+table = chart.table(cellText=table_data, loc='center', cellLoc='center', colWidths=[0.3, 0.2, 0.2, 0.2, 0.2])
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+table.auto_set_column_width([0, 1, 2, 3, 4])
+
+chart.title("T-Test Results: Expenses and Time")
+chart.tight_layout()
+chart.savefig("output_t_test_results.png")
+
+# Display variance results in a table format
+chart.figure(figsize=(10, 6))
+chart.axis('off')
+
+# Create a table for the variance results
+table_data = [["Comparison", "Variance (Expenses)", "Variance (Time)"]]
+for result in variance_results:
+    table_data.append([f"{result[0]} vs {result[1]}", f"{result[2]:.3f}", f"{result[4]:.3f}"])
+
+# Plot the table for variance results
+table = chart.table(cellText=table_data, loc='center', cellLoc='center', colWidths=[0.3, 0.3, 0.3])
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+table.auto_set_column_width([0, 1, 2])
+
+chart.title("Variance Results: Expenses and Time")
+chart.tight_layout()
+chart.savefig("output_variance_results.png")
