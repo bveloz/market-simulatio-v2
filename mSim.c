@@ -12,7 +12,7 @@
 #define GAS_TANK_CAPACITY 15.0
 #define DAILY_TRAVEL_HOURS 2.0
 #define GAS_CONSUMPTION_RATE 2.0
-#define MAX_GAS_STATIONS 5
+#define MAX_GAS_STATIONS 10
 #define MAX_CONVENIENCE_SCORE 5
 #define JSON_FILE "simulation_results.json"
 
@@ -71,15 +71,15 @@ void simulate_customer_trip(Customer *customer, GasStation *stations, int num_st
             double cost = stations[i].adjusted_price * (GAS_TANK_CAPACITY - current_gas);
             double time = stations[i].travel_time_from_a + stations[i].convenience_score_a_to_b;
 
-            if (customer->purchase_style == 0 && cost < min_cost) {
-                min_cost = cost;
+            if (customer->purchase_style == 0 && time < min_time) {
+                min_time = time;
                 selected_station = i;
             } else if (customer->purchase_style == 1 && time < min_time) {
                 min_time = time;
                 selected_station = i;
-            } else if (customer->purchase_style == 2) {
-                selected_station = 0;
-                break;
+            } else if (customer->purchase_style == 2 && cost < min_cost) {
+                min_cost = cost;
+                selected_station = i;
             }
         }
 
